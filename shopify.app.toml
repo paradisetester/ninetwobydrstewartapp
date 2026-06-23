@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "2c4753c3bd7ce52cc03a3841dd001944"
-application_url = "https://example.com"
+application_url = "https://ninetwobydrstewartapp.onrender.com"
 embedded = true
 name = "testee-information-app"
 
@@ -49,7 +49,7 @@ api_version = "2026-07"
   topics = [ "app/scopes_update" ]
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://ninetwobydrstewartapp.onrender.com/api/auth" ]
 
 [build]
 automatically_update_urls_on_dev = true
