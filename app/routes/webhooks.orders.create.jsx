@@ -19,19 +19,23 @@ export async function action({ request }) {
     }
   }
 
-  if (patientIds.size === 0) return new Response();
+  // If no patient IDs found on line items, still log the order using orderId as identifier
+  // so it shows up as a lead in the dashboard
+  const identifiers = patientIds.size > 0
+    ? Array.from(patientIds)
+    : [`order-${orderId}`];
 
-  // Create a ProviderOrder log for each patient found in this order
   await prisma.providerOrder.createMany({
-    data: Array.from(patientIds).map((patientIdentifier) => ({
+    data: identifiers.map((patientIdentifier) => ({
       shopifyOrderId:   orderId,
       patientIdentifier,
       status:           "submitted",
+      shop,
     })),
     skipDuplicates: true,
   });
 
-  console.log(`[orders/create] order ${orderId} — logged ${patientIds.size} patient(s):`, [...patientIds]);
+  console.log(`[orders/create] shop=${shop} order=${orderId} — logged ${identifiers.length} lead(s):`, identifiers);
 
   return new Response();
 }

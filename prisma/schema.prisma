@@ -58,6 +58,8 @@ model Patient {
 model ProviderOrder {
   id                Int      @id @default(autoincrement())
 
+  shop              String   @default("")
+
   shopifyOrderId    String
 
   patientIdentifier String
