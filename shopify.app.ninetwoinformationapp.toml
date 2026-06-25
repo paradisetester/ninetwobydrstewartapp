@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "2a76dc1f518f194b085f4dfa5957f093"
+client_id = "63249a746ab77c6085021ad1e8cbb9c9"
 name = "ninetwoinformationapp"
 application_url = "https://ninetwobydrstewartapp.onrender.com"
 embedded = true
