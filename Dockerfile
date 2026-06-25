@@ -1,5 +1,5 @@
 FROM node:20-alpine
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl postgresql-client
 
 EXPOSE 3000
 
@@ -12,6 +12,9 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 COPY . .
+
+# Generate Prisma client for postgresql at build time
+RUN npx prisma generate
 
 RUN npm run build
 
