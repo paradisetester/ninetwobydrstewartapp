@@ -1,0 +1,19 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "2b81f0db7bb39dd1188c0b1428b27a83"
+application_url = "https://ninetwobydrstewartapp.onrender.com"
+embedded = true
+name = "ninetwoinformationappv1"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,write_metaobject_definitions,write_metaobjects,write_products"
+
+[auth]
+redirect_urls = [ "https://ninetwobydrstewartapp.onrender.com/api/auth" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[build]
+automatically_update_urls_on_dev = true
