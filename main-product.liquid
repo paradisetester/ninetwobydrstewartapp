@@ -556,6 +556,13 @@
                       block.style.display = "block";
                       block.classList.remove("template-block");
                       block.querySelector(".block-number").textContent = i;
+                      
+                      // Rename all properties to: properties[Testee i Name]
+                      block.querySelectorAll("input, select").forEach((field) => {
+                        const base = field.getAttribute("data-attr"); // Name, Email, Date of Birth, Sex at Birth
+                        field.name = `properties[Testee ${i} ${base}]`;
+                      });
+
                       wrapper.appendChild(block);
                     }
 
