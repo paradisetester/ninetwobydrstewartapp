@@ -494,23 +494,23 @@
                       
                       <div class="additional-infomation-form-item">
                         <label>Testee Name <span>*</span></label>
-                        <input type="text" class="prop-input" data-attr="Name" required>
+                        <input type="text" name="properties[Name]" class="prop-input" data-attr="Name" required form="{{ product_form_id }}">
                       </div>
 
                       <div class="additional-infomation-form-item">
                         <label>Testee Email <span>*</span></label>
-                        <input type="email" class="prop-input" data-attr="Email" required>
+                        <input type="email" name="properties[Email]" class="prop-input" data-attr="Email" required form="{{ product_form_id }}">
                       </div>
 
                       <div class="additional-infomation-form-item">
                         <label>Testee Date of Birth <span>*</span></label>
-                        <input type="date" class="prop-input" data-attr="Date of Birth" required>
+                        <input type="date" name="properties[Date of Birth]" class="prop-input" data-attr="Date of Birth" required form="{{ product_form_id }}">
                       </div>
 
                       <div class="additional-infomation-form-item">
                         <label>Testee Sex at Birth <span>*</span></label>
-                        <select class="prop-input" data-attr="Sex at Birth" required>
-                          <option value="">Select Sex at Birth...</option>
+                        <select name="properties[Sex at Birth]" class="prop-input" data-attr="Sex at Birth" required form="{{ product_form_id }}">
+                          <option value="">Select Testee Sex at Birth..</option>
                           <option>Male</option>
                           <option>Female</option>
                         </select>

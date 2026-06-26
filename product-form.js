@@ -86,11 +86,8 @@ for (const block of testeeBlocks) {
     const patient = await response.json();
     if (!patient.patientId) throw new Error(`No Patient ID returned for Testee ${blockNumber}`);
 
-    // Append testee info + patient ID into formData so they go to cart properties
-    formData.append(`properties[Testee ${blockNumber} Name]`, name);
-    formData.append(`properties[Testee ${blockNumber} Email]`, email);
-    formData.append(`properties[Testee ${blockNumber} Date of Birth]`, dob);
-    formData.append(`properties[Testee ${blockNumber} Sex at Birth]`, gender);
+    // Append patient ID into formData so it goes to cart properties
+    // The other fields (Name, Email, etc.) are already in formData because they are form inputs
     formData.append(`properties[Testee ${blockNumber} Patient ID]`, patient.patientId);
 
   } catch (error) {
