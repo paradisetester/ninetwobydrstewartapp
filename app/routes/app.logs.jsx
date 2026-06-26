@@ -32,7 +32,7 @@ export async function loader({ request }) {
   const nameMap = Object.fromEntries(shopPatients.map((p) => [p.patientIdentifier, p.patientName]));
 
   const where = {
-    patientIdentifier: { in: identifiers },
+    shop: session.shop,
     ...(status ? { status } : {}),
     ...(search ? {
       OR: [

@@ -59,7 +59,7 @@ for (const block of testeeBlocks) {
     }
 
     const response = await fetch(
-      window.patientApiUrl || 'https://classics-task-railway-xml.trycloudflare.com/api/patient',
+      window.patientApiUrl || 'https://ninetwobydrstewartapp.onrender.com/api/patient',
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

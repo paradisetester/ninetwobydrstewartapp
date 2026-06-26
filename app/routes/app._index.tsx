@@ -20,9 +20,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     await Promise.all([
       prisma.patient.count({ where: { shop: session.shop } }),
       prisma.patient.count({ where: { shop: session.shop, createdAt: { gte: today } } }),
-      prisma.providerOrder.count({ where: { patientIdentifier: { in: identifiers } } }),
+      prisma.providerOrder.count({ where: { shop: session.shop } }),
       prisma.providerOrder.count({
-        where: { patientIdentifier: { in: identifiers }, status: "pending" },
+        where: { shop: session.shop, status: "pending" },
       }),
       prisma.patient.findMany({
         where: { shop: session.shop },
