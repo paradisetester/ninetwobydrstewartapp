@@ -43,7 +43,6 @@ if (!customElements.get('product-form')) {
         );
 
         // ── Step 1: Collect & validate all testee fields ──────────────────────
-        // Also build the list of unique product/variant IDs to confirm 3 *different* tests.
         const testeeData = [];
         for (const block of testeeBlocks) {
           const blockNumberElement = block.querySelector('.block-number');
@@ -61,7 +60,6 @@ if (!customElements.get('product-form')) {
           const email   = block.querySelector('[data-attr="Email"]')?.value?.trim();
           const dob     = block.querySelector('[data-attr="Date of Birth"]')?.value;
           const gender  = block.querySelector('[data-attr="Sex at Birth"]')?.value;
-          // Each block may carry its own variant id via a data attribute or hidden input
           const variantId = block.dataset.variantId || block.querySelector('[name="id"]')?.value || null;
 
           if (!name || !email || !dob || !gender) {
@@ -76,41 +74,7 @@ if (!customElements.get('product-form')) {
           testeeData.push({ blockNumber, name, email, dob, gender, variantId });
         }
 
-        // ── Step 2: Discount eligibility check ────────────────────────────────
-        // Discount "3FOR299" applies when ALL testee blocks belong to the SAME person
-        // (matching name + date-of-birth) AND there are exactly 3 tests in this order.
-        // This works for both new patients and re-orders (existing patient IDs are
-        // automatically reused by the API, so the same person always gets the same ID).
-        let discountEligible = false;
-        if (testeeData.length === 3) {
-          const [first, ...rest] = testeeData;
-          const nameLower = first.name.toLowerCase();
-          discountEligible = rest.every(
-            (t) => t.name.toLowerCase() === nameLower && t.dob === first.dob
-          );
-
-          if (discountEligible) {
-            console.log(
-              `[Discount] Eligible – 3 tests ordered for the same tester: "${first.name}" (DOB: ${first.dob})`
-            );
-          } else {
-            console.log('[Discount] Not eligible – testee blocks belong to different people.');
-          }
-        } else {
-          console.log(`[Discount] Not eligible – ${testeeData.length} testee block(s) found (need exactly 3).`);
-        }
-
-        if (discountEligible) {
-          try {
-            console.log('[Discount] Applying discount code 3FOR299...');
-            await fetch('/discount/3FOR299', { credentials: 'same-origin' });
-            console.log('[Discount] Discount code applied successfully.');
-          } catch (error) {
-            console.error('[Discount] Failed to apply discount:', error);
-          }
-        }
-
-        // ── Step 3: Create / reuse Patient IDs for each testee ────────────────
+        // ── Step 2: Create / reuse Patient IDs for each testee ────────────────
         // The API returns an existing patientId if name + dob + gender already exist
         // (i.e. the same person ordering again), so no duplicate records are created.
         for (const { blockNumber, name, email, dob, gender } of testeeData) {
@@ -176,7 +140,7 @@ if (!customElements.get('product-form')) {
 
         fetch(`${routes.cart_add_url}`, config)
           .then((response) => response.json())
-          .then((response) => {
+          .then(async (response) => {
             if (response.status) {
               publish(PUB_SUB_EVENTS.cartError, {
                 source: 'product-form',
@@ -197,6 +161,68 @@ if (!customElements.get('product-form')) {
               window.location = window.routes.cart_url;
               return;
             }
+
+            // ── Step 3: Post-add discount check ────────────────────────────────
+            // We evaluate the FULL cart AFTER the item is added so this works
+            // whether the user adds 3 products in one go OR one at a time.
+            //
+            // Rule: if any single person (matched by name + date-of-birth stored
+            // in the line-item properties) has 3 or more line items in the cart,
+            // apply "3FOR299".  Otherwise clear any previously applied discount.
+            try {
+              const cartRes = await fetch('/cart.js', { credentials: 'same-origin' });
+              const cart = await cartRes.json();
+
+              // Count DISTINCT line items per unique person (name::dob key).
+              // Each line item always counts as 1 regardless of its quantity,
+              // because the discount requires 3 *different* tests, not qty=3
+              // of the same test.
+              const personCount = {};
+              for (const item of cart.items) {
+                const props = item.properties || {};
+                // Properties are stored with keys like "Testee 1 Name", "Testee 1 Date of Birth"
+                // Find all testee numbers present in this line item
+                const testeeNumbers = new Set();
+                for (const key of Object.keys(props)) {
+                  const match = key.match(/^Testee\s+(\d+)\s+/i);
+                  if (match) testeeNumbers.add(match[1]);
+                }
+
+                for (const num of testeeNumbers) {
+                  const itemName = (props[`Testee ${num} Name`] || '').trim().toLowerCase();
+                  const itemDob  = (props[`Testee ${num} Date of Birth`] || '').trim();
+                  if (itemName && itemDob) {
+                    const key = `${itemName}::${itemDob}`;
+                    // Always +1 per line item, never use item.quantity —
+                    // qty=3 of one product is NOT the same as 3 distinct tests.
+                    personCount[key] = (personCount[key] || 0) + 1;
+                  }
+                }
+              }
+
+              // Eligible only when a single person has exactly 3 distinct line items.
+              // (<3 = not enough tests; different people each with 1 item = not eligible)
+              const eligible = Object.values(personCount).some((count) => count >= 3);
+              console.log('[Discount] Cart person counts:', personCount, '| Eligible:', eligible);
+
+              if (eligible) {
+                console.log('[Discount] Applying 3FOR299...');
+                await fetch('/discount/3FOR299', { credentials: 'same-origin' });
+                console.log('[Discount] 3FOR299 applied.');
+              } else {
+                console.log('[Discount] Not eligible – clearing any existing discount...');
+                await fetch('/cart/update.js', {
+                  method: 'POST',
+                  credentials: 'same-origin',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ discount: '' }),
+                });
+                console.log('[Discount] Discount cleared.');
+              }
+            } catch (discountErr) {
+              console.warn('[Discount] Error during discount check:', discountErr);
+            }
+            // ── End discount check ──────────────────────────────────────────────
 
             const startMarker = CartPerformance.createStartingMarker('add:wait-for-subscribers');
             if (!this.error)
