@@ -42,6 +42,34 @@ const testeeBlocks = document.querySelectorAll(
   '#additional-info-wrapper .additional-infomation-block:not(.template-block)'
 );
 
+// Discount Application Logic
+let allSamePerson = false;
+if (testeeBlocks.length === 3) {
+  allSamePerson = true;
+  let firstPerson = null;
+  for (const block of testeeBlocks) {
+    const name  = block.querySelector('[data-attr="Name"]')?.value?.trim();
+    const dob   = block.querySelector('[data-attr="Date of Birth"]')?.value;
+    if (!firstPerson) {
+      firstPerson = { name, dob };
+    } else {
+      if (firstPerson.name !== name || firstPerson.dob !== dob) {
+        allSamePerson = false;
+        break;
+      }
+    }
+  }
+}
+
+if (allSamePerson) {
+  try {
+    // Apply Shopify discount code "3FOR299" silently before adding to cart
+    await fetch('/discount/3FOR299');
+  } catch (error) {
+    console.error('Failed to apply discount', error);
+  }
+}
+
 for (const block of testeeBlocks) {
   try {
     const blockNumberElement = block.querySelector('.block-number');
