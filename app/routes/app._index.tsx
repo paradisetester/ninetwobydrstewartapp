@@ -1,8 +1,28 @@
-import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData, useFetcher } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import prisma from "../db.server";
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const formData = await request.formData();
+  
+  if (formData.get("intent") === "clear_data") {
+    // Delete all patients and provider orders for the shop
+    await prisma.patient.deleteMany({ where: { shop: session.shop } });
+    await prisma.providerOrder.deleteMany({ where: { shop: session.shop } });
+    
+    // Reset sequence to 1
+    await prisma.appSetting.update({
+      where: { shop: session.shop },
+      data: { patientIdSequence: 1 }
+    });
+    
+    return { success: true };
+  }
+  return { success: false };
+};
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -47,6 +67,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 export default function Index() {
   const { totalPatients, todayPatients, totalSubmissions, pendingSubmissions, recentPatients } =
     useLoaderData<typeof loader>();
+  const fetcher = useFetcher();
 
   return (
     <s-page heading="Testee Information">
@@ -61,7 +82,14 @@ export default function Index() {
         <s-stack direction="inline" gap="base" style={{ marginTop: "12px" }}>
           <s-button variant="primary" href="/app/patients">View Patients</s-button>
           <s-button href="/app/logs">View Logs</s-button>
-
+          <fetcher.Form method="post" onSubmit={(e) => {
+            if (!confirm('Are you sure you want to clear all data and reset the series? This cannot be undone.')) {
+              e.preventDefault();
+            }
+          }}>
+            <input type="hidden" name="intent" value="clear_data" />
+            <s-button variant="critical" submit loading={fetcher.state !== "idle"}>Clear Data & Reset Series</s-button>
+          </fetcher.Form>
         </s-stack>
       </s-section>
 
