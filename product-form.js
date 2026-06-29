@@ -37,99 +37,132 @@ if (!customElements.get('product-form')) {
 
         const formData = new FormData(this.form);
 
-        // ================ Custom Code For Testiee Form Submission
-const testeeBlocks = document.querySelectorAll(
-  '#additional-info-wrapper .additional-infomation-block:not(.template-block)'
-);
+        // ================ Custom Code For Testee Form Submission
+        const testeeBlocks = document.querySelectorAll(
+          '#additional-info-wrapper .additional-infomation-block:not(.template-block)'
+        );
 
-// Discount Application Logic
-let allSamePerson = false;
-if (testeeBlocks.length === 3) {
-  allSamePerson = true;
-  let firstPerson = null;
-  for (const block of testeeBlocks) {
-    const name  = block.querySelector('[data-attr="Name"]')?.value?.trim();
-    const dob   = block.querySelector('[data-attr="Date of Birth"]')?.value;
-    if (!firstPerson) {
-      firstPerson = { name, dob };
-    } else {
-      if (firstPerson.name !== name || firstPerson.dob !== dob) {
-        allSamePerson = false;
-        break;
-      }
-    }
-  }
-}
+        // ── Step 1: Collect & validate all testee fields ──────────────────────
+        // Also build the list of unique product/variant IDs to confirm 3 *different* tests.
+        const testeeData = [];
+        for (const block of testeeBlocks) {
+          const blockNumberElement = block.querySelector('.block-number');
+          if (!blockNumberElement) {
+            alert('Unable to determine testee number. Please refresh and try again.');
+            this.submitButton.classList.remove('loading');
+            this.submitButton.removeAttribute('aria-disabled');
+            const spinner = this.querySelector('.loading__spinner');
+            if (spinner) spinner.classList.add('hidden');
+            return;
+          }
 
-if (allSamePerson) {
-  try {
-    // Apply Shopify discount code "3FOR299" silently before adding to cart
-    await fetch('/discount/3FOR299');
-  } catch (error) {
-    console.error('Failed to apply discount', error);
-  }
-}
+          const blockNumber = blockNumberElement.textContent.trim();
+          const name    = block.querySelector('[data-attr="Name"]')?.value?.trim();
+          const email   = block.querySelector('[data-attr="Email"]')?.value?.trim();
+          const dob     = block.querySelector('[data-attr="Date of Birth"]')?.value;
+          const gender  = block.querySelector('[data-attr="Sex at Birth"]')?.value;
+          // Each block may carry its own variant id via a data attribute or hidden input
+          const variantId = block.dataset.variantId || block.querySelector('[name="id"]')?.value || null;
 
-for (const block of testeeBlocks) {
-  try {
-    const blockNumberElement = block.querySelector('.block-number');
-    if (!blockNumberElement) throw new Error('Unable to determine testee number');
+          if (!name || !email || !dob || !gender) {
+            alert(`Please complete all fields for Testee ${blockNumber}`);
+            this.submitButton.classList.remove('loading');
+            this.submitButton.removeAttribute('aria-disabled');
+            const spinner = this.querySelector('.loading__spinner');
+            if (spinner) spinner.classList.add('hidden');
+            return;
+          }
 
-    const blockNumber = blockNumberElement.textContent.trim();
+          testeeData.push({ blockNumber, name, email, dob, gender, variantId });
+        }
 
-    const name  = block.querySelector('[data-attr="Name"]')?.value?.trim();
-    const email = block.querySelector('[data-attr="Email"]')?.value?.trim();
-    const dob   = block.querySelector('[data-attr="Date of Birth"]')?.value;
-    const gender = block.querySelector('[data-attr="Sex at Birth"]')?.value;
+        // ── Step 2: Discount eligibility check ────────────────────────────────
+        // Discount "3FOR299" applies when ALL testee blocks belong to the SAME person
+        // (matching name + date-of-birth) AND there are exactly 3 tests in this order.
+        // This works for both new patients and re-orders (existing patient IDs are
+        // automatically reused by the API, so the same person always gets the same ID).
+        let discountEligible = false;
+        if (testeeData.length === 3) {
+          const [first, ...rest] = testeeData;
+          const nameLower = first.name.toLowerCase();
+          discountEligible = rest.every(
+            (t) => t.name.toLowerCase() === nameLower && t.dob === first.dob
+          );
 
-    if (!name || !email || !dob || !gender) {
-      throw new Error(`Please complete all fields for Testee ${blockNumber}`);
-    }
+          if (discountEligible) {
+            console.log(
+              `[Discount] Eligible – 3 tests ordered for the same tester: "${first.name}" (DOB: ${first.dob})`
+            );
+          } else {
+            console.log('[Discount] Not eligible – testee blocks belong to different people.');
+          }
+        } else {
+          console.log(`[Discount] Not eligible – ${testeeData.length} testee block(s) found (need exactly 3).`);
+        }
 
-    const response = await fetch(
-      window.patientApiUrl || 'https://ninetwobydrstewartapp.onrender.com/api/patient',
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shop: Shopify.shop,
-          customerId: window.customerId || '',
-          name,
-          email,
-          dob,
-          gender
-        })
-      }
-    );
+        if (discountEligible) {
+          try {
+            console.log('[Discount] Applying discount code 3FOR299...');
+            await fetch('/discount/3FOR299', { credentials: 'same-origin' });
+            console.log('[Discount] Discount code applied successfully.');
+          } catch (error) {
+            console.error('[Discount] Failed to apply discount:', error);
+          }
+        }
 
-    if (!response.ok) {
-      let errorMessage = `Failed to generate Patient ID for Testee ${blockNumber}`;
-      try {
-        const errorData = await response.json();
-        if (errorData?.message) errorMessage = errorData.message;
-      } catch (e) {}
-      throw new Error(errorMessage);
-    }
+        // ── Step 3: Create / reuse Patient IDs for each testee ────────────────
+        // The API returns an existing patientId if name + dob + gender already exist
+        // (i.e. the same person ordering again), so no duplicate records are created.
+        for (const { blockNumber, name, email, dob, gender } of testeeData) {
+          try {
+            const response = await fetch(
+              window.patientApiUrl || 'https://ninetwobydrstewartapp.onrender.com/api/patient',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  shop: Shopify.shop,
+                  customerId: window.customerId || '',
+                  name,
+                  email,
+                  dob,
+                  gender,
+                })
+              }
+            );
 
-    const patient = await response.json();
-    if (!patient.patientId) throw new Error(`No Patient ID returned for Testee ${blockNumber}`);
+            if (!response.ok) {
+              let errorMessage = `Failed to generate Patient ID for Testee ${blockNumber}`;
+              try {
+                const errorData = await response.json();
+                if (errorData?.message) errorMessage = errorData.message;
+              } catch (e) {}
+              throw new Error(errorMessage);
+            }
 
-    // Append patient ID into formData so it goes to cart properties
-    // The other fields (Name, Email, etc.) are already in formData because they are form inputs
-    formData.append(`properties[Testee ${blockNumber} Patient ID]`, patient.patientId);
+            const patient = await response.json();
+            if (!patient.patientId) throw new Error(`No Patient ID returned for Testee ${blockNumber}`);
 
-  } catch (error) {
-    console.error('Patient ID Generation Error:', error);
-    alert(error.message);
+            const isExisting = patient.isExisting ?? false;
+            console.log(
+              `[Patient] Testee ${blockNumber} – ${isExisting ? 'existing' : 'new'} Patient ID: ${patient.patientId}`
+            );
 
-    this.submitButton.classList.remove('loading');
-    this.submitButton.removeAttribute('aria-disabled');
-    const spinner = this.querySelector('.loading__spinner');
-    if (spinner) spinner.classList.add('hidden');
-    return;
-  }
-}
-        // ================ Custom Code For Testiee Form Submission Ends
+            // Attach patient ID to cart properties
+            formData.append(`properties[Testee ${blockNumber} Patient ID]`, patient.patientId);
+
+          } catch (error) {
+            console.error('[Patient] Error:', error);
+            alert(error.message);
+
+            this.submitButton.classList.remove('loading');
+            this.submitButton.removeAttribute('aria-disabled');
+            const spinner = this.querySelector('.loading__spinner');
+            if (spinner) spinner.classList.add('hidden');
+            return;
+          }
+        }
+        // ================ Custom Code For Testee Form Submission Ends
 
         if (this.cart) {
           formData.append(

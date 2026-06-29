@@ -59,6 +59,8 @@ export async function action({ request }) {
       },
     });
 
+    const isExisting = !!patient;
+
     if (!patient) {
       patient = await prisma.patient.create({
         data: {
@@ -83,7 +85,7 @@ export async function action({ request }) {
       });
     }
 
-    return new Response(JSON.stringify({ patientId: patient.patientIdentifier }), {
+    return new Response(JSON.stringify({ patientId: patient.patientIdentifier, isExisting }), {
       headers: CORS,
     });
   } catch (err) {
